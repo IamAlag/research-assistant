@@ -6,23 +6,38 @@ const VECTORS_KEY = 'research-assistant:vectors:v1';
 let redisClient: Redis | null = null;
 let missingRedisConfigLogged = false;
 
+function getRedisConfig(): { url: string; token: string } | null {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.KV_REST_API_URL ||
+    process.env.REDIS_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.KV_REST_API_TOKEN ||
+    process.env.REDIS_TOKEN;
+
+  if (!url || !token) {
+    return null;
+  }
+
+  return { url, token };
+}
+
 function getRedisClient(): Redis | null {
   if (redisClient) {
     return redisClient;
   }
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
+  const redisConfig = getRedisConfig();
+  if (!redisConfig) {
     if (!missingRedisConfigLogged) {
       missingRedisConfigLogged = true;
-      console.warn('[Persistence] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not set. Falling back to in-memory storage.');
+      console.warn('[Persistence] Redis env vars not set. Falling back to in-memory storage.');
     }
     return null;
   }
 
-  redisClient = new Redis({ url, token });
+  redisClient = new Redis(redisConfig);
   return redisClient;
 }
 
@@ -55,7 +70,7 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export function isPersistentStorageConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(getRedisConfig());
 }
 
 export async function loadDocumentRecords<T>(): Promise<T[] | null> {

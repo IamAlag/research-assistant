@@ -88,9 +88,12 @@ export function validateExtractedText(text: string): FileValidation {
     };
   }
 
-  // Check if the text is mostly garbage (high ratio of non-printable chars)
-  const printableRatio = text.replace(/[^\x20-\x7E\n\r\t]/g, '').length / text.length;
-  if (printableRatio < 0.5) {
+  // Only reject text that is dominated by control characters.
+  // Scientific PDFs often contain unicode symbols, ligatures, and accents,
+  // so an ASCII-only printable ratio is too strict for real documents.
+  const controlChars = text.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g)?.length || 0;
+  const controlCharRatio = controlChars / text.length;
+  if (controlCharRatio > 0.2) {
     return {
       valid: false,
       error: 'Extracted text appears to be corrupted or non-readable.',

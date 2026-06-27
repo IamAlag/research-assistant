@@ -23,6 +23,54 @@ import { generateDocumentId, generateChunkId } from '@/lib/utils/id-generator';
 import type { DocumentMetadata, DocumentChunk, UploadResult, SupportedFileType } from '@/types/document';
 
 /**
+ * Some PDF.js bundles expect DOMMatrix-like globals that are not available in
+ * the Vercel Node runtime. A minimal polyfill is enough for text extraction.
+ */
+function ensurePdfCompatibilityGlobals(): void {
+  const globalScope = globalThis as unknown as {
+    DOMMatrix?: typeof DOMMatrix;
+    DOMMatrixReadOnly?: typeof DOMMatrix;
+  };
+
+  if (typeof globalScope.DOMMatrix === 'undefined') {
+    class SimpleDOMMatrix {
+      a = 1;
+      b = 0;
+      c = 0;
+      d = 1;
+      e = 0;
+      f = 0;
+
+      constructor() {
+        // Intentionally minimal: PDF text extraction only needs the symbol to exist.
+      }
+
+      multiplySelf(): this {
+        return this;
+      }
+
+      translateSelf(): this {
+        return this;
+      }
+
+      scaleSelf(): this {
+        return this;
+      }
+
+      invertSelf(): this {
+        return this;
+      }
+    }
+
+    globalScope.DOMMatrix = SimpleDOMMatrix as unknown as typeof DOMMatrix;
+  }
+
+  if (typeof globalScope.DOMMatrixReadOnly === 'undefined') {
+    globalScope.DOMMatrixReadOnly = globalScope.DOMMatrix;
+  }
+}
+
+/**
  * Process an uploaded file through the full ingestion pipeline.
  * Returns the document metadata and enriched chunks ready for embedding.
  */
@@ -117,30 +165,16 @@ async function extractText(
  */
 async function extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
   try {
+    ensurePdfCompatibilityGlobals();
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdf = require('pdf-parse');
-    
-    // Check if it's the newer class-based pdf-parse v2
-    if (pdf.PDFParse) {
-      const uint8Array = new Uint8Array(buffer);
-      const parser = new pdf.PDFParse(uint8Array);
-      
-      const resultObj = await parser.getText();
-      const info = await parser.load();
-      const numpages = info.numPages || 1;
-      
-      return {
-        text: resultObj.text || '',
-        pageCount: numpages,
-      };
-    } else {
-      // Fallback to pdf-parse v1
-      const data = await pdf(buffer);
-      return {
-        text: data.text,
-        pageCount: data.numpages || 1,
-      };
-    }
+    const pdf = require('pdf-parse/lib/pdf-parse.js');
+    const data = await pdf(buffer, { version: 'v1.10.100' });
+
+    return {
+      text: data.text,
+      pageCount: data.numpages || 1,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to parse PDF: ${message}. The file may be corrupted or password-protected.`);

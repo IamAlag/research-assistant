@@ -70,7 +70,7 @@ export async function embedDocuments(texts: string[]): Promise<number[][]> {
   // Batch embed uncached texts with safe chunk sizes
   if (uncachedTexts.length > 0) {
     const model = getEmbeddingsModel();
-    const batchSize = 16; // Safe batch limit to prevent Google API rate and payload size errors
+    const batchSize = 64; // Larger batch size to reduce API round-trips during upload ingestion
     const newEmbeddings: number[][] = [];
 
     for (let i = 0; i < uncachedTexts.length; i += batchSize) {

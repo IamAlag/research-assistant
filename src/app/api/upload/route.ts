@@ -15,8 +15,8 @@ import { updateDocumentList } from '@/lib/services/agent-orchestrator';
 import { addDocument, getDocumentList } from '@/lib/services/document-store';
 import type { UploadResult } from '@/types/document';
 
-/** Maximum request duration (60 seconds for large files) */
-export const maxDuration = 60;
+/** Maximum request duration for large files */
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
           processingTimeMs: Date.now() - startTime,
         });
       } catch (error) {
+        console.error(`[Upload API] Failed to process "${file.name}":`, error);
         results.push({
           success: false,
           document: null,
