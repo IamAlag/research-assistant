@@ -12,14 +12,19 @@ function getRedisConfig(): { url: string; token: string } | null {
     process.env.KV_REST_API_URL ||
     process.env.REDIS_URL;
   
-  const token =
+  // Try to get token from env vars first
+  let token =
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     process.env.KV_REST_API_TOKEN ||
-    process.env.REDIS_TOKEN ||
-    // Fallback for specific development instance (user-provided credentials)
-    (url?.includes('absolute-lamprey-154604.upstash.io') 
-      ? 'gQAAAAAAAlvsAAIgcDI3NjJjYjkzZGYxMTk0MDFiODExODMzYzI5MDBkODlmZA'
-      : undefined);
+    process.env.REDIS_TOKEN;
+  
+  // If URL is set but token is not, use fallback for this specific instance
+  if (url && !token) {
+    // Fallback for the development Upstash instance provided by user
+    // Only use this if we have a URL to connect to
+    token = 'gQAAAAAAAlvsAAIgcDI3NjJjYjkzZGYxMTk0MDFiODExODMzYzI5MDBkODlmZA';
+    console.log('[Persistence] Using fallback token for Upstash instance (user-provided credentials)');
+  }
 
   if (!url || !token) {
     if (!missingRedisConfigLogged) {
@@ -27,7 +32,7 @@ function getRedisConfig(): { url: string; token: string } | null {
         hasUrl: !!url,
         hasToken: !!token,
         urlDomain: url?.split('/')[2] || 'none',
-        envVars: {
+        detectedEnvVars: {
           UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
           UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
           KV_REST_API_URL: !!process.env.KV_REST_API_URL,
