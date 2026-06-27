@@ -1,10 +1,8 @@
 /**
  * Embedding Service.
  * 
- * Wraps Google Generative AI embeddings with caching to avoid
- * recomputing embeddings for the same content.
- * 
- * Uses gemini-embedding-001 model which produces 768-dimensional vectors.
+ * Uses Google Generative AI embeddings when available, with a deterministic
+ * local fallback so uploads still work when the Google API key is invalid.
  */
 
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
@@ -14,19 +12,99 @@ import { contentHash } from '@/lib/utils/id-generator';
 /** In-memory embedding cache: content hash → embedding vector */
 const embeddingCache = new Map<string, number[]>();
 
+type EmbeddingModel = {
+  embedQuery: (text: string) => Promise<number[]>;
+  embedDocuments: (texts: string[]) => Promise<number[][]>;
+};
+
 /** Singleton embeddings instance */
-let embeddingsInstance: GoogleGenerativeAIEmbeddings | null = null;
+let embeddingsInstance: EmbeddingModel | null = null;
+let localFallbackLogged = false;
+
+const EMBEDDING_DIMENSIONS = 768;
+
+function normalizeVector(vector: number[]): number[] {
+  const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0));
+  if (magnitude === 0) {
+    return vector;
+  }
+
+  return vector.map((value) => value / magnitude);
+}
+
+function hashToken(token: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function createLocalEmbedding(text: string): number[] {
+  const vector = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
+  const tokens = text.toLowerCase().match(/[a-z0-9]+/g) || [];
+
+  for (const token of tokens) {
+    const hash = hashToken(token);
+    const index = hash % EMBEDDING_DIMENSIONS;
+    const weight = 1 + (token.length % 7) / 10;
+    vector[index] += weight;
+
+    const secondIndex = (index + Math.floor(hash / EMBEDDING_DIMENSIONS)) % EMBEDDING_DIMENSIONS;
+    vector[secondIndex] += weight * 0.35;
+  }
+
+  return normalizeVector(vector);
+}
+
+function getLocalFallbackModel(): EmbeddingModel {
+  if (!localFallbackLogged) {
+    localFallbackLogged = true;
+    console.warn('[EmbeddingService] Using local fallback embeddings because Gemini embeddings failed or are unavailable.');
+  }
+
+  return {
+    async embedQuery(text: string): Promise<number[]> {
+      return createLocalEmbedding(text);
+    },
+    async embedDocuments(texts: string[]): Promise<number[][]> {
+      return texts.map((text) => createLocalEmbedding(text));
+    },
+  };
+}
 
 /**
  * Get or create the embeddings model instance.
  */
-function getEmbeddingsModel(): GoogleGenerativeAIEmbeddings {
+function getEmbeddingsModel(): EmbeddingModel {
   if (!embeddingsInstance) {
     const config = getConfig();
-    embeddingsInstance = new GoogleGenerativeAIEmbeddings({
+    const googleEmbeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: config.google.apiKey,
       model: config.google.embeddingModel,
     });
+
+    embeddingsInstance = {
+      async embedQuery(text: string): Promise<number[]> {
+        try {
+          return await googleEmbeddings.embedQuery(text);
+        } catch (error) {
+          console.warn('[EmbeddingService] Gemini embedQuery failed, falling back to local embeddings:', error);
+          embeddingsInstance = getLocalFallbackModel();
+          return embeddingsInstance.embedQuery(text);
+        }
+      },
+      async embedDocuments(texts: string[]): Promise<number[][]> {
+        try {
+          return await googleEmbeddings.embedDocuments(texts);
+        } catch (error) {
+          console.warn('[EmbeddingService] Gemini embedDocuments failed, falling back to local embeddings:', error);
+          embeddingsInstance = getLocalFallbackModel();
+          return embeddingsInstance.embedDocuments(texts);
+        }
+      },
+    };
   }
   return embeddingsInstance;
 }
@@ -113,6 +191,6 @@ export function clearEmbeddingCache(): void {
  * Get the embeddings model instance for use with vector stores.
  * This is needed by LangChain's MemoryVectorStore.
  */
-export function getEmbeddingsInstance(): GoogleGenerativeAIEmbeddings {
+export function getEmbeddingsInstance(): EmbeddingModel {
   return getEmbeddingsModel();
 }
