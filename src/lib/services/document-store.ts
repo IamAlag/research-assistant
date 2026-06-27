@@ -11,30 +11,25 @@ import { loadDocumentRecords, saveDocumentRecords, isPersistentStorageConfigured
 // Ensure the map survives HMR reloads
 const globalForDocs = globalThis as unknown as {
   documentStore: Map<string, DocumentMetadata>;
-  documentStoreLoaded: boolean;
 };
 
 const documentStore = globalForDocs.documentStore ?? new Map<string, DocumentMetadata>();
-let documentStoreLoaded = globalForDocs.documentStoreLoaded ?? false;
 
 globalForDocs.documentStore = documentStore;
-globalForDocs.documentStoreLoaded = documentStoreLoaded;
 
-async function ensureDocumentStoreLoaded(): Promise<void> {
-  if (documentStoreLoaded || !isPersistentStorageConfigured()) {
+async function refreshDocumentStore(): Promise<void> {
+  if (!isPersistentStorageConfigured()) {
     return;
   }
 
   const persistedDocuments = await loadDocumentRecords<DocumentMetadata>();
+  documentStore.clear();
+
   if (persistedDocuments && persistedDocuments.length > 0) {
-    documentStore.clear();
     for (const metadata of persistedDocuments) {
       documentStore.set(metadata.id, metadata);
     }
   }
-
-  documentStoreLoaded = true;
-  globalForDocs.documentStoreLoaded = true;
 }
 
 async function persistDocumentStore(): Promise<void> {
@@ -46,24 +41,24 @@ async function persistDocumentStore(): Promise<void> {
 }
 
 export async function addDocument(metadata: DocumentMetadata): Promise<void> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   documentStore.set(metadata.id, metadata);
   await persistDocumentStore();
 }
 
 export async function getDocument(id: string): Promise<DocumentMetadata | undefined> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   return documentStore.get(id);
 }
 
 export async function getAllDocuments(): Promise<DocumentMetadata[]> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   return Array.from(documentStore.values())
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   const deleted = documentStore.delete(id);
   if (deleted) {
     await persistDocumentStore();
@@ -72,12 +67,12 @@ export async function deleteDocument(id: string): Promise<boolean> {
 }
 
 export async function getDocumentCount(): Promise<number> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   return documentStore.size;
 }
 
 export async function getDocumentList(): Promise<Array<{ id: string; fileName: string; title: string }>> {
-  await ensureDocumentStoreLoaded();
+  await refreshDocumentStore();
   return Array.from(documentStore.values()).map(d => ({
     id: d.id,
     fileName: d.fileName,
