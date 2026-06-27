@@ -1,6 +1,10 @@
 import { Redis } from '@upstash/redis';
 import { NextResponse } from 'next/server';
-import { isPersistentStorageConfigured } from '@/lib/services/persistence-service';
+import {
+  isPersistentStorageConfigured,
+  loadDocumentRecords,
+  saveDocumentRecords,
+} from '@/lib/services/persistence-service';
 
 export function GET() {
   return NextResponse.json({
@@ -26,10 +30,28 @@ export async function POST() {
     await redis.set(key, value);
     const roundTrip = await redis.get<typeof value>(key);
 
+    const documentProbe = [
+      {
+        id: `debug_${Date.now()}`,
+        fileName: 'debug.txt',
+        fileType: 'txt',
+        fileSize: 1,
+        pageCount: 1,
+        chunkCount: 1,
+        totalTokens: 1,
+        uploadedAt: new Date().toISOString(),
+        title: 'Debug Document',
+      },
+    ];
+
+    await saveDocumentRecords(documentProbe);
+    const documentRoundTrip = await loadDocumentRecords<typeof documentProbe[number]>();
+
     return NextResponse.json({
       configured: isPersistentStorageConfigured(),
       key,
       roundTrip,
+      documentRoundTrip,
     });
   } catch (error) {
     return NextResponse.json(
