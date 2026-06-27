@@ -77,13 +77,13 @@ async function readJson<T>(key: string): Promise<T | null> {
   }
 
   try {
-    const value = await client.get<string>(key);
-    if (typeof value !== 'string' || value.length === 0) {
+    const value = await client.get<unknown>(key);
+    if (value === null || value === undefined || value === '') {
       console.debug(`[Persistence] No data found in Redis for key: ${key}`);
       return null;
     }
 
-    const parsed = JSON.parse(value) as T;
+    const parsed = typeof value === 'string' ? JSON.parse(value) as T : (value as T);
     console.log(`[Persistence] Successfully loaded ${key}`, {
       itemCount: Array.isArray(parsed) ? parsed.length : 'N/A',
       timestamp: new Date().toISOString(),
@@ -103,7 +103,7 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
   }
 
   try {
-    await client.set(key, JSON.stringify(value));
+    await client.set(key, value as never);
     console.log(`[Persistence] Successfully persisted ${key}`, {
       itemCount: Array.isArray(value) ? value.length : 'N/A',
       timestamp: new Date().toISOString(),
