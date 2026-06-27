@@ -11,12 +11,32 @@ function getRedisConfig(): { url: string; token: string } | null {
     process.env.UPSTASH_REDIS_REST_URL ||
     process.env.KV_REST_API_URL ||
     process.env.REDIS_URL;
+  
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     process.env.KV_REST_API_TOKEN ||
-    process.env.REDIS_TOKEN;
+    process.env.REDIS_TOKEN ||
+    // Fallback for specific development instance (user-provided credentials)
+    (url?.includes('absolute-lamprey-154604.upstash.io') 
+      ? 'gQAAAAAAAlvsAAIgcDI3NjJjYjkzZGYxMTk0MDFiODExODMzYzI5MDBkODlmZA'
+      : undefined);
 
   if (!url || !token) {
+    if (!missingRedisConfigLogged) {
+      console.warn('[Persistence] Redis config incomplete', {
+        hasUrl: !!url,
+        hasToken: !!token,
+        urlDomain: url?.split('/')[2] || 'none',
+        envVars: {
+          UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
+          UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+          KV_REST_API_URL: !!process.env.KV_REST_API_URL,
+          KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
+          REDIS_URL: !!process.env.REDIS_URL,
+          REDIS_TOKEN: !!process.env.REDIS_TOKEN,
+        }
+      });
+    }
     return null;
   }
 
@@ -32,28 +52,44 @@ function getRedisClient(): Redis | null {
   if (!redisConfig) {
     if (!missingRedisConfigLogged) {
       missingRedisConfigLogged = true;
-      console.warn('[Persistence] Redis env vars not set. Falling back to in-memory storage.');
+      console.warn('[Persistence] Redis env vars not set. Falling back to in-memory storage. Data will be lost on cold start.');
     }
     return null;
   }
 
-  redisClient = new Redis(redisConfig);
-  return redisClient;
+  try {
+    redisClient = new Redis(redisConfig);
+    console.log('[Persistence] Redis client initialized successfully', {
+      url: redisConfig.url.split('/')[2],
+      timestamp: new Date().toISOString()
+    });
+    return redisClient;
+  } catch (error) {
+    console.error('[Persistence] Failed to initialize Redis client:', error);
+    return null;
+  }
 }
 
 async function readJson<T>(key: string): Promise<T | null> {
   const client = getRedisClient();
   if (!client) {
-    return null;
-  }
-
-  const value = await client.get<string>(key);
-  if (typeof value !== 'string' || value.length === 0) {
+    console.debug(`[Persistence] No Redis client available for read: ${key}`);
     return null;
   }
 
   try {
-    return JSON.parse(value) as T;
+    const value = await client.get<string>(key);
+    if (typeof value !== 'string' || value.length === 0) {
+      console.debug(`[Persistence] No data found in Redis for key: ${key}`);
+      return null;
+    }
+
+    const parsed = JSON.parse(value) as T;
+    console.log(`[Persistence] Successfully loaded ${key}`, {
+      itemCount: Array.isArray(parsed) ? parsed.length : 'N/A',
+      timestamp: new Date().toISOString()
+    });
+    return parsed;
   } catch (error) {
     console.warn(`[Persistence] Failed to parse persisted value for ${key}:`, error);
     return null;
@@ -63,10 +99,19 @@ async function readJson<T>(key: string): Promise<T | null> {
 async function writeJson<T>(key: string, value: T): Promise<void> {
   const client = getRedisClient();
   if (!client) {
+    console.debug(`[Persistence] No Redis client available. Skipping write for key: ${key}`);
     return;
   }
 
-  await client.set(key, JSON.stringify(value));
+  try {
+    await client.set(key, JSON.stringify(value));
+    console.log(`[Persistence] Successfully persisted ${key}`, {
+      itemCount: Array.isArray(value) ? value.length : 'N/A',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error(`[Persistence] Failed to persist ${key}:`, error);
+  }
 }
 
 export function isPersistentStorageConfigured(): boolean {
