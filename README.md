@@ -1,4 +1,5 @@
 # Agentic Multi-Document Research & Q&A Assistant
+<img width="1910" height="962" alt="Screenshot 2026-06-27 234100" src="https://github.com/user-attachments/assets/41747250-696f-43a8-913d-0fcf2423f16b" />
 
 An award-winning, production-quality AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
 
