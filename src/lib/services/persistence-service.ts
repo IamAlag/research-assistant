@@ -10,25 +10,18 @@ function getRedisConfig(): { url: string; token: string } | null {
   const url =
     process.env.UPSTASH_REDIS_REST_URL ||
     process.env.KV_REST_API_URL ||
+    process.env.KV_URL ||
     process.env.REDIS_URL;
-  
-  // Try to get token from env vars first
-  let token =
+
+  const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     process.env.KV_REST_API_TOKEN ||
     process.env.REDIS_TOKEN;
-  
-  // If URL is set but token is not, use fallback for this specific instance
-  if (url && !token) {
-    // Fallback for the development Upstash instance provided by user
-    // Only use this if we have a URL to connect to
-    token = 'gQAAAAAAAlvsAAIgcDI3NjJjYjkzZGYxMTk0MDFiODExODMzYzI5MDBkODlmZA';
-    console.log('[Persistence] Using fallback token for Upstash instance (user-provided credentials)');
-  }
 
   if (!url || !token) {
     if (!missingRedisConfigLogged) {
-      console.warn('[Persistence] Redis config incomplete', {
+      missingRedisConfigLogged = true;
+      console.warn('[Persistence] Redis config incomplete - will use in-memory storage', {
         hasUrl: !!url,
         hasToken: !!token,
         urlDomain: url?.split('/')[2] || 'none',
@@ -37,9 +30,10 @@ function getRedisConfig(): { url: string; token: string } | null {
           UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
           KV_REST_API_URL: !!process.env.KV_REST_API_URL,
           KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
+          KV_URL: !!process.env.KV_URL,
           REDIS_URL: !!process.env.REDIS_URL,
           REDIS_TOKEN: !!process.env.REDIS_TOKEN,
-        }
+        },
       });
     }
     return null;
@@ -66,7 +60,7 @@ function getRedisClient(): Redis | null {
     redisClient = new Redis(redisConfig);
     console.log('[Persistence] Redis client initialized successfully', {
       url: redisConfig.url.split('/')[2],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return redisClient;
   } catch (error) {
@@ -92,7 +86,7 @@ async function readJson<T>(key: string): Promise<T | null> {
     const parsed = JSON.parse(value) as T;
     console.log(`[Persistence] Successfully loaded ${key}`, {
       itemCount: Array.isArray(parsed) ? parsed.length : 'N/A',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return parsed;
   } catch (error) {
@@ -112,7 +106,7 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
     await client.set(key, JSON.stringify(value));
     console.log(`[Persistence] Successfully persisted ${key}`, {
       itemCount: Array.isArray(value) ? value.length : 'N/A',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error(`[Persistence] Failed to persist ${key}:`, error);
