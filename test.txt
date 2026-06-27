@@ -1,0 +1,8 @@
+# Artificial Intelligence
+Artificial Intelligence (AI) is intelligence demonstrated by machines, as opposed to natural intelligence displayed by animals including humans. Leading AI textbooks define the field as the study of "intelligent agents".
+
+## Subfields of AI
+AI research has many subfields:
+1. Machine Learning (ML): where algorithms improve automatically through experience.
+2. Natural Language Processing (NLP): where computers are trained to process and analyze human language.
+3. Computer Vision: how computers can gain high-level understanding from digital images or videos.

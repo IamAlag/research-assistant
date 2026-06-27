@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agentic Multi-Document Research & Q&A Assistant
+
+An award-winning, production-quality AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
+
+It uses an advanced agentic loop (Plan → Decompose → Retrieve → Evaluate → Re-retrieve → Synthesize → Cite) to answer complex queries across multiple uploaded documents (PDFs, TXT, and Markdown).
+
+---
+
+## Key Features
+
+*   **Multi-Document Processing**: Drag-and-drop or select multiple PDFs, TXT, and Markdown files simultaneously.
+*   **Semantic & Structural Chunking**: Heading-aware recursive text splitting that preserves section hierarchy, page numbers, and provenance.
+*   **Advanced Vector Retrieval**: Cosine similarity search combined with **Maximal Marginal Relevance (MMR)** for content diversity, and metadata-filtering.
+*   **Agentic Reasoning Loop**: Replaces static single-turn RAG with an active planner-evaluator chain. If initial evidence is weak, the agent automatically runs query refinement and searches again.
+*   **Source Citations**: Inline citations mapped directly to source documents with page numbers, section headers, and exact quotations.
+*   **Premium Glassmorphic UI**: High-fidelity dark/light mode, animated sidebar, interactive thinking panel (workflows are visible, but raw LLM chain-of-thought is hidden), inline suggested follow-up chips, copyable answers, and smooth Framer Motion micro-animations.
+
+---
+
+## Technical Stack
+
+*   **Framework**: Next.js 16 (App Router)
+*   **Language**: TypeScript (strict types)
+*   **Styling**: TailwindCSS v4
+*   **Agent Orchestration**: LangChain.js & custom workflow loop
+*   **Embeddings & Chat Model**: Google Gemini API (`gemini-2.5-flash` / `gemini-embedding-001`)
+*   **Animations**: Framer Motion
+*   **Icons**: Lucide Icons
+*   **Markdown Parsing**: React Markdown with rehype-highlight (code blocks syntax highlighting) & remark-gfm
+
+---
+
+## Project Structure
+
+```
+research-assistant/
+├── src/
+│   ├── app/                    # App Router routes & API endpoints
+│   │   ├── api/
+│   │   │   ├── chat/           # SSE Streaming Chat route
+│   │   │   ├── documents/      # Document catalog management
+│   │   │   └── upload/         # Ingestion & Vector indexing route
+│   │   ├── globals.css         # Custom tokens & design styles
+│   │   ├── layout.tsx          # App container & Error boundaries
+│   │   └── page.tsx            # Main workspace page
+│   ├── components/             # Reusable UI component modules
+│   │   ├── chat/               # Message bubbles, input, citations
+│   │   ├── documents/          # Sidebar, upload zone, document list cards
+│   │   ├── shared/             # Theme toggler, header, spinners
+│   │   └── thinking/           # Reasoning progress steps list
+│   ├── lib/
+│   │   ├── prompts/            # Stage-specific system instructions
+│   │   ├── services/           # Ingestion, vector math, memory, orchestrator
+│   │   └── utils/              # Text cleaners, validators, ID generators
+│   └── types/                  # Shared TypeScript interfaces
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+*   Node.js v20+
+*   Google Gemini API Key (get one from [Google AI Studio](https://aistudio.google.com/apikey))
+
+### Installation
+
+1. Clone or navigate to the directory:
+   ```bash
+   cd research-assistant
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install --legacy-peer-deps
+   ```
+
+3. Configure environment variables:
+   Create a `.env.local` file in the root directory:
+   ```env
+   GOOGLE_API_KEY=your-gemini-api-key-here
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser to start researching.
+
+---
+
+## Production Readiness
+
+*   **Standalone Build Config**: Configured with `serverExternalPackages: ["pdf-parse"]` to prevent bundling errors on Vercel/serverless environments.
+*   **API Timeouts**: Handlers explicitly configured with `maxDuration` limits to permit longer planning loops.
+*   **Global Error Handling**: Protected via React client boundaries to recover gracefully from parsing anomalies.
+
+---
+
+## Deploying on Vercel
+
+### Required Environment Variables
+
+Set these in the Vercel project settings:
+
+```env
+GOOGLE_API_KEY=your_google_api_key
+GROQ_API_KEY=your_groq_api_key
+UPSTASH_REDIS_REST_URL=your_upstash_redis_rest_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_rest_token
+GEMINI_CHAT_MODEL=gemini-2.5-flash
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+GROQ_CHAT_MODEL=llama-3.3-70b-versatile
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+RETRIEVAL_TOP_K=8
+MAX_FILE_SIZE_MB=20
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Important Production Note
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app now persists document metadata and vector entries through Upstash Redis when the two Redis environment variables are present. If those variables are missing, it gracefully falls back to in-memory storage.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+That means the Vercel deploy is now good for a real public demo as long as you configure the Redis variables. Without them, the link will still work, but uploaded documents can disappear on cold starts or new serverless instances.
