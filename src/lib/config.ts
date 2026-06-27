@@ -7,11 +7,6 @@
 
 /** Validated application configuration */
 export interface AppConfig {
-  google: {
-    apiKey: string;
-    chatModel: string;
-    embeddingModel: string;
-  };
   groq: {
     apiKey: string;
     chatModel: string;
@@ -28,27 +23,28 @@ export interface AppConfig {
   };
 }
 
+function normalizeGroqApiKey(value: string | undefined): string {
+  const trimmed = (value || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const bearerMatch = trimmed.match(/gsk_[A-Za-z0-9]+/);
+  if (bearerMatch) {
+    return bearerMatch[0];
+  }
+
+  return trimmed.replace(/^Bearer\s+/i, '').trim();
+}
+
 /**
  * Get and validate the application configuration from environment variables.
  * Throws descriptive errors for missing required values.
  */
 export function getConfig(): AppConfig {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey || apiKey === 'your_google_api_key_here') {
-    throw new Error(
-      'GOOGLE_API_KEY is not set. Get your API key at https://aistudio.google.com/apikey ' +
-      'and add it to .env.local'
-    );
-  }
-
-  const groqApiKey = process.env.GROQ_API_KEY || '';
+  const groqApiKey = normalizeGroqApiKey(process.env.GROQ_API_KEY);
 
   return {
-    google: {
-      apiKey,
-      chatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash',
-      embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
-    },
     groq: {
       apiKey: groqApiKey,
       chatModel: process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile',
