@@ -44,14 +44,14 @@ export default function CitationCard({ citation, index }: CitationCardProps) {
             Page {citation.pageNumber} · {citation.sectionHeading}
           </p>
         </div>
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
-          Number(scorePercent) >= 70
+        <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider ${
+          citation.relevanceScore >= 0.75
             ? 'bg-[var(--color-success-500)]/15 text-[var(--color-success-400)]'
-            : Number(scorePercent) >= 40
+            : citation.relevanceScore >= 0.45
             ? 'bg-[var(--color-accent-500)]/15 text-[var(--color-accent-400)]'
-            : 'bg-[var(--color-error-500)]/15 text-[var(--color-error-400)]'
+            : 'bg-[var(--color-primary-500)]/15 text-[var(--color-primary-400)]'
         }`}>
-          {scorePercent}%
+          {citation.relevanceScore >= 0.75 ? 'Highly Relevant' : citation.relevanceScore >= 0.45 ? 'Relevant' : 'Contextual'}
         </span>
         {isExpanded ? (
           <ChevronUp size={12} className="text-[var(--text-tertiary)] shrink-0" />

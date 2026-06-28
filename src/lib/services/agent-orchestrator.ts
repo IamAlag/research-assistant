@@ -121,10 +121,12 @@ export async function* processQuestion(
       retrievalRound++;
 
       const docIds = await getStoredDocumentIds();
-      // Use BDR whenever there are multiple documents — the old code only
-      // activated BDR for non-'qa' intents, which is why single-doc answers
-      // appeared even when 3 papers were uploaded.
+      // Use BDR whenever there are multiple documents
       const isMultiDocSearch = docIds.length > 1;
+
+      // Get names of all uploaded documents to render as a cool checklist
+      const allDocs = await getDocumentList();
+      const docNamesList = allDocs.map(d => `\n✓ ${d.fileName}`).join('');
 
       const searchStep = createThinkingStep(
         retrievalRound === 1 ? 'searching' : 're-searching',
@@ -132,7 +134,7 @@ export async function* processQuestion(
           ? (isMultiDocSearch ? `Reading ${docIds.length} Papers` : 'Searching Documents')
           : `Re-searching (Round ${retrievalRound})`,
         isMultiDocSearch 
-          ? `Retrieving evidence from each of ${docIds.length} papers individually...`
+          ? `Reading papers:${docNamesList}`
           : `Searching across documents...`
       );
       yield { type: 'thinking', data: searchStep };
@@ -170,9 +172,6 @@ export async function* processQuestion(
       // ============================================================
       // STEP 4: EVIDENCE EVALUATION
       // ============================================================
-      // For BDR searches, we already guarantee per-document coverage so
-      // skip the evaluator LLM call to save Groq tokens. Only run the
-      // evaluator for single-document standard searches.
       if (isMultiDocSearch) {
         const evalStep = createThinkingStep(
           'evaluating',
@@ -241,10 +240,14 @@ export async function* processQuestion(
       targetPrompt = COMPARE_PROMPT;
     }
 
+    // Detect if user requested specific formatting constraints (e.g. bullets, table)
+    const formatInstructions = getFormatInstructions(question);
+
     const synthesizerPrompt = targetPrompt
       .replace('{question}', question)
       .replace('{history}', history || 'No previous conversation.')
-      .replace('{evidence}', evidenceContext);
+      .replace('{evidence}', evidenceContext)
+      .replace('{format_instructions}', formatInstructions);
 
     // Build list of unique documents involved
     const uniqueDocsMap = new Map<string, string>(); // id -> fileName
@@ -542,4 +545,29 @@ function createThinkingStep(
 function completeStep(step: ThinkingStep, description: string): void {
   step.status = 'complete';
   step.description = description;
+}
+
+/**
+ * Detect explicit user requests for output formatting constraints.
+ */
+function getFormatInstructions(question: string): string {
+  const lower = question.toLowerCase();
+  
+  if (lower.includes('bullet point') || lower.includes('bulletpoint') || lower.includes('bullets') || lower.includes('as list') || lower.includes('bulleted')) {
+    return `**🚨 USER FORMAT INSTRUCTION (STRICT BULLET POINTS):** The user explicitly requested the output to be in **bullet points**. You must structure your findings, analysis, and report sections primarily using clear, detailed, and well-organized bullet points instead of long paragraphs of text. Do NOT write paragraphs for the Executive Summary or concept breakdowns; use bullet points.`;
+  }
+  
+  if (lower.includes('table') || lower.includes('grid') || lower.includes('matrix')) {
+    return `**🚨 USER FORMAT INSTRUCTION (STRICT TABLES):** The user explicitly requested a **table**. Make sure to format comparisons, metrics, datasets, or differences as standard markdown tables.`;
+  }
+  
+  if (lower.includes('paragraph') || lower.includes('prose')) {
+    return `**🚨 USER FORMAT INSTRUCTION (STRICT PROSE):** The user explicitly requested **paragraphs/prose**. Structure your explanations and reports as cohesive paragraphs of text rather than bulleted lists.`;
+  }
+  
+  if (lower.includes('brief') || lower.includes('concise') || lower.includes('short')) {
+    return `**🚨 USER FORMAT INSTRUCTION (CONCISE):** The user explicitly requested a **brief and concise** response. Keep all explanations short, punchy, and highly focused on the core facts without unnecessary details.`;
+  }
+
+  return '';
 }

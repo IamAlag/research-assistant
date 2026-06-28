@@ -54,6 +54,7 @@ export async function getDocument(id: string): Promise<DocumentMetadata | undefi
 export async function getAllDocuments(): Promise<DocumentMetadata[]> {
   await refreshDocumentStore();
   return Array.from(documentStore.values())
+    .filter(d => !d.fileName.includes('persistence') && !d.fileName.includes('smoke') && !d.fileName.startsWith('test-') && d.fileName !== 'test.txt')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 }
 
@@ -68,14 +69,18 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 export async function getDocumentCount(): Promise<number> {
   await refreshDocumentStore();
-  return documentStore.size;
+  return Array.from(documentStore.values())
+    .filter(d => !d.fileName.includes('persistence') && !d.fileName.includes('smoke') && !d.fileName.startsWith('test-') && d.fileName !== 'test.txt')
+    .length;
 }
 
 export async function getDocumentList(): Promise<Array<{ id: string; fileName: string; title: string }>> {
   await refreshDocumentStore();
-  return Array.from(documentStore.values()).map(d => ({
-    id: d.id,
-    fileName: d.fileName,
-    title: d.title,
-  }));
+  return Array.from(documentStore.values())
+    .filter(d => !d.fileName.includes('persistence') && !d.fileName.includes('smoke') && !d.fileName.startsWith('test-') && d.fileName !== 'test.txt')
+    .map(d => ({
+      id: d.id,
+      fileName: d.fileName,
+      title: d.title,
+    }));
 }

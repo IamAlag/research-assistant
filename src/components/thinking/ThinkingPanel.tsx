@@ -162,8 +162,14 @@ export default function ThinkingPanel({ steps, searchResults, isOpen, onClose }:
                                 <span className="text-[10px] font-medium text-[var(--text-primary)] truncate">
                                   {sc.chunk.documentName}
                                 </span>
-                                <span className="text-[10px] text-[var(--color-primary-400)] font-mono shrink-0 ml-2">
-                                  {(sc.finalScore * 100).toFixed(0)}%
+                                 <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ml-2 uppercase tracking-wider ${
+                                  sc.finalScore >= 0.75
+                                    ? 'bg-[var(--color-success-500)]/15 text-[var(--color-success-400)]'
+                                    : sc.finalScore >= 0.45
+                                    ? 'bg-[var(--color-accent-500)]/15 text-[var(--color-accent-400)]'
+                                    : 'bg-[var(--color-primary-500)]/15 text-[var(--color-primary-400)]'
+                                }`}>
+                                  {sc.finalScore >= 0.75 ? 'Highly Relevant' : sc.finalScore >= 0.45 ? 'Relevant' : 'Contextual'}
                                 </span>
                               </div>
                               <p className="text-[10px] text-[var(--text-tertiary)] mb-1">
