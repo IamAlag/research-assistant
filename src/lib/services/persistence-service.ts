@@ -57,7 +57,10 @@ function getRedisClient(): Redis | null {
   }
 
   try {
-    redisClient = Redis.fromEnv();
+    redisClient = new Redis({
+      url: redisConfig.url,
+      token: redisConfig.token,
+    });
     console.log('[Persistence] Redis client initialized successfully', {
       url: redisConfig.url.split('/')[2],
       timestamp: new Date().toISOString(),

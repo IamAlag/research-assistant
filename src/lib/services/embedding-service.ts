@@ -1,12 +1,10 @@
 /**
  * Embedding Service.
  * 
- * Uses Google Generative AI embeddings when available, with a deterministic
- * local fallback so uploads still work when the Google API key is invalid.
+ * Uses a deterministic local embedding implementation so uploads and retrieval
+ * do not depend on a second external API key.
  */
 
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
-import { getConfig } from '@/lib/config';
 import { contentHash } from '@/lib/utils/id-generator';
 
 /** In-memory embedding cache: content hash → embedding vector */
@@ -61,7 +59,7 @@ function createLocalEmbedding(text: string): number[] {
 function getLocalFallbackModel(): EmbeddingModel {
   if (!localFallbackLogged) {
     localFallbackLogged = true;
-    console.warn('[EmbeddingService] Using local fallback embeddings because Gemini embeddings failed or are unavailable.');
+    console.warn('[EmbeddingService] Using local fallback embeddings.');
   }
 
   return {
@@ -79,32 +77,7 @@ function getLocalFallbackModel(): EmbeddingModel {
  */
 function getEmbeddingsModel(): EmbeddingModel {
   if (!embeddingsInstance) {
-    const config = getConfig();
-    const googleEmbeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: config.google.apiKey,
-      model: config.google.embeddingModel,
-    });
-
-    embeddingsInstance = {
-      async embedQuery(text: string): Promise<number[]> {
-        try {
-          return await googleEmbeddings.embedQuery(text);
-        } catch (error) {
-          console.warn('[EmbeddingService] Gemini embedQuery failed, falling back to local embeddings:', error);
-          embeddingsInstance = getLocalFallbackModel();
-          return embeddingsInstance.embedQuery(text);
-        }
-      },
-      async embedDocuments(texts: string[]): Promise<number[][]> {
-        try {
-          return await googleEmbeddings.embedDocuments(texts);
-        } catch (error) {
-          console.warn('[EmbeddingService] Gemini embedDocuments failed, falling back to local embeddings:', error);
-          embeddingsInstance = getLocalFallbackModel();
-          return embeddingsInstance.embedDocuments(texts);
-        }
-      },
-    };
+    embeddingsInstance = getLocalFallbackModel();
   }
   return embeddingsInstance;
 }

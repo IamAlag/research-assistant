@@ -137,36 +137,35 @@ export async function retrieveBalancedAcrossDocuments(
   const startTime = Date.now();
   const mergedConfig: RetrievalConfig = { ...DEFAULT_RETRIEVAL_CONFIG, ...config };
   
-  // Retrieve 3 chunks per document (or scale based on topK)
+  // Always retrieve at least 3 chunks per document to guarantee coverage
   const chunksPerDoc = Math.max(3, Math.ceil(mergedConfig.topK / Math.max(1, documentIds.length)));
   const allChunks: ScoredChunk[] = [];
   
-  console.log(`[RetrievalService] BDR started for ${documentIds.length} docs (${chunksPerDoc} chunks each)`);
+  console.log(`[RetrievalService] BDR: ${documentIds.length} docs × ${chunksPerDoc} chunks each`);
 
   for (const docId of documentIds) {
+    // Use a very low threshold for per-document retrieval so local embeddings
+    // don't accidentally filter out an entire paper on broad queries
     const docResult = await retrieveChunks(query, {
       ...mergedConfig,
       topK: chunksPerDoc,
+      similarityThreshold: 0.01,
       documentFilter: [docId],
       useReranking: true,
     });
 
     if (docResult.chunks.length > 0) {
+      console.log(`[RetrievalService] BDR: doc ${docId} → ${docResult.chunks.length} chunks`);
       allChunks.push(...docResult.chunks);
-      continue;
-    }
-
-    const fallbackChunks = getIntroductoryChunks(docId, 1);
-    if (fallbackChunks.length > 0) {
-      console.log(
-        `[RetrievalService] BDR fallback for ${docId}: using introductory chunk to preserve document coverage`
-      );
-
+    } else {
+      // Absolute fallback: grab the first chunks of the paper
+      const fallbackChunks = getIntroductoryChunks(docId, chunksPerDoc);
+      console.log(`[RetrievalService] BDR fallback: doc ${docId} → ${fallbackChunks.length} intro chunks`);
       allChunks.push(
         ...fallbackChunks.map((chunk) => ({
           chunk,
-          similarityScore: 0.2,
-          finalScore: 0.2,
+          similarityScore: 0.15,
+          finalScore: 0.15,
         }))
       );
     }

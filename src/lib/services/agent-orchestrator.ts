@@ -121,14 +121,19 @@ export async function* processQuestion(
       retrievalRound++;
 
       const docIds = await getStoredDocumentIds();
-      const isMultiDocSearch = plan.taskIntent && plan.taskIntent !== 'qa' && docIds.length > 1;
+      // Use BDR whenever there are multiple documents — the old code only
+      // activated BDR for non-'qa' intents, which is why single-doc answers
+      // appeared even when 3 papers were uploaded.
+      const isMultiDocSearch = docIds.length > 1;
 
       const searchStep = createThinkingStep(
         retrievalRound === 1 ? 'searching' : 're-searching',
-        retrievalRound === 1 ? 'Searching Documents' : `Re-searching (Round ${retrievalRound})`,
+        retrievalRound === 1
+          ? (isMultiDocSearch ? `Reading ${docIds.length} Papers` : 'Searching Documents')
+          : `Re-searching (Round ${retrievalRound})`,
         isMultiDocSearch 
-          ? `Retrieving balanced chunks per document across ${docIds.length} papers...`
-          : `Searching across ${docIds.length} documents...`
+          ? `Retrieving evidence from each of ${docIds.length} papers individually...`
+          : `Searching across documents...`
       );
       yield { type: 'thinking', data: searchStep };
       thinkingSteps.push(searchStep);
@@ -149,8 +154,11 @@ export async function* processQuestion(
         }
       }
 
+      // Count how many unique documents are represented
+      const coveredDocIds = new Set(allEvidence.map(e => e.chunk.documentId));
+
       completeStep(searchStep, isMultiDocSearch 
-        ? `Found ${result.chunks.length} chunks (Balanced across ${docIds.length} papers)`
+        ? `Retrieved ${result.chunks.length} chunks covering ${coveredDocIds.size}/${docIds.length} papers`
         : `Found ${result.chunks.length} relevant chunks (${result.retrievalTimeMs}ms)`);
       yield { type: 'thinking', data: searchStep };
 
@@ -162,37 +170,52 @@ export async function* processQuestion(
       // ============================================================
       // STEP 4: EVIDENCE EVALUATION
       // ============================================================
-      const evalStep = createThinkingStep(
-        'evaluating',
-        'Evaluating Evidence',
-        'Assessing whether the retrieved evidence is sufficient...'
-      );
-      yield { type: 'thinking', data: evalStep };
-      thinkingSteps.push(evalStep);
+      // For BDR searches, we already guarantee per-document coverage so
+      // skip the evaluator LLM call to save Groq tokens. Only run the
+      // evaluator for single-document standard searches.
+      if (isMultiDocSearch) {
+        const evalStep = createThinkingStep(
+          'evaluating',
+          'Evaluating Evidence',
+          'Checking document coverage...'
+        );
+        yield { type: 'thinking', data: evalStep };
+        thinkingSteps.push(evalStep);
 
-      const evaluation = await evaluateEvidence(question, allEvidence);
-      
-      evidenceIsSufficient = evaluation.isSufficient || retrievalRound >= agentConfig.maxRetrievalRounds;
-
-      let relevanceLabel = 'Low Relevance';
-      if (evaluation.qualityScore >= 0.75) {
-        relevanceLabel = 'High Relevance (Solid evidence base)';
-      } else if (evaluation.qualityScore >= 0.45) {
-        relevanceLabel = 'Moderate Relevance (Contextual coverage)';
-      }
-
-      if (evidenceIsSufficient) {
-        completeStep(evalStep, `Evidence Quality: [ ${relevanceLabel} ] — Sufficient`);
+        const coveragePct = Math.round((coveredDocIds.size / docIds.length) * 100);
+        evidenceIsSufficient = true;
+        completeStep(evalStep, `Coverage: ${coveredDocIds.size}/${docIds.length} papers (${coveragePct}%) — Sufficient`);
+        yield { type: 'thinking', data: evalStep };
       } else {
-        completeStep(evalStep, `Evidence Quality: [ ${relevanceLabel} ] — Expanding retrieval...`);
-        // Add gap-filling queries for next round
-        if (evaluation.suggestions.length > 0) {
-          queries.length = 0;
-          queries.push(...evaluation.suggestions.slice(0, 3));
-        }
-      }
+        const evalStep = createThinkingStep(
+          'evaluating',
+          'Evaluating Evidence',
+          'Assessing whether the retrieved evidence is sufficient...'
+        );
+        yield { type: 'thinking', data: evalStep };
+        thinkingSteps.push(evalStep);
 
-      yield { type: 'thinking', data: evalStep };
+        const evaluation = await evaluateEvidence(question, allEvidence);
+        evidenceIsSufficient = evaluation.isSufficient || retrievalRound >= agentConfig.maxRetrievalRounds;
+
+        let relevanceLabel = 'Low Relevance';
+        if (evaluation.qualityScore >= 0.75) {
+          relevanceLabel = 'High Relevance (Solid evidence base)';
+        } else if (evaluation.qualityScore >= 0.45) {
+          relevanceLabel = 'Moderate Relevance (Contextual coverage)';
+        }
+
+        if (evidenceIsSufficient) {
+          completeStep(evalStep, `Evidence Quality: [ ${relevanceLabel} ] — Sufficient`);
+        } else {
+          completeStep(evalStep, `Evidence Quality: [ ${relevanceLabel} ] — Expanding retrieval...`);
+          if (evaluation.suggestions.length > 0) {
+            queries.length = 0;
+            queries.push(...evaluation.suggestions.slice(0, 3));
+          }
+        }
+        yield { type: 'thinking', data: evalStep };
+      }
     }
 
     // ============================================================

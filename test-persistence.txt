@@ -1,0 +1,20 @@
+Test Document for Persistence Verification
+============================================
+
+This is a test document to verify that the Redis persistence layer is working correctly.
+
+If you see this document after refreshing the page, it means:
+✓ The upload was successful
+✓ Data was persisted to Redis
+✓ The persistence layer is working as expected
+
+This is the final verification step before submission.
+
+Testing notes:
+- Upload this file via the web UI
+- Refresh the page
+- Check if the document still appears in the sidebar
+- This confirms Redis persistence is functional
+
+Date: 2026-06-28
+Test Status: Ready for submission
