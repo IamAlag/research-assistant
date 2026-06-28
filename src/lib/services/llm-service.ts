@@ -103,22 +103,29 @@ export async function* generateStreamingResponse(
  * LLMs sometimes wrap JSON in markdown code fences.
  */
 export function parseLLMJson<T>(response: string): T {
-  // Strip markdown code fences if present
   let cleaned = response.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.slice(3);
+
+  // Strategy 1: Extract from ```json ... ``` code fence
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
   }
-  if (cleaned.endsWith('```')) {
-    cleaned = cleaned.slice(0, -3);
+
+  // Strategy 2: If still not pure JSON, find the first { ... } or [ ... ] block
+  if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+    const objectMatch = cleaned.match(/(\{[\s\S]*\})/);
+    const arrayMatch = cleaned.match(/(\[[\s\S]*\])/);
+    if (objectMatch) {
+      cleaned = objectMatch[1];
+    } else if (arrayMatch) {
+      cleaned = arrayMatch[1];
+    }
   }
-  cleaned = cleaned.trim();
 
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    console.error('[LLMService] Failed to parse JSON response:', cleaned.substring(0, 200));
+    console.error('[LLMService] Failed to parse JSON response:', cleaned.substring(0, 300));
     throw new Error('Failed to parse LLM response as JSON');
   }
 }
