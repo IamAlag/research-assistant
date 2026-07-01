@@ -1,7 +1,7 @@
 # Agentic Multi-Document Research & Q&A Assistant
 <img width="1910" height="962" alt="Screenshot 2026-06-27 234100" src="https://github.com/user-attachments/assets/41747250-696f-43a8-913d-0fcf2423f16b" />
 
-An award-winning, production-quality AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
+An production-quality AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
 
 It uses an advanced agentic loop (Plan → Decompose → Retrieve → Evaluate → Re-retrieve → Synthesize → Cite) to answer complex queries across multiple uploaded documents (PDFs, TXT, and Markdown).
 
@@ -100,27 +100,6 @@ research-assistant/
 
 ---
 
-## Deploying on Vercel
-
-### Required Environment Variables
-
-Set these in the Vercel project settings:
-
-```env
-GOOGLE_API_KEY=your_google_api_key
-GROQ_API_KEY=your_groq_api_key
-UPSTASH_REDIS_REST_URL=your_upstash_redis_rest_url
-UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_rest_token
-GEMINI_CHAT_MODEL=gemini-2.5-flash
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
-GROQ_CHAT_MODEL=llama-3.3-70b-versatile
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-RETRIEVAL_TOP_K=8
-MAX_FILE_SIZE_MB=20
-```
-
-### Important Production Note
 
 The app now persists document metadata and vector entries through Upstash Redis when the two Redis environment variables are present. If those variables are missing, it gracefully falls back to in-memory storage.
 
