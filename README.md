@@ -1,7 +1,7 @@
 # Agentic Multi-Document Research & Q&A Assistant
 <img width="1910" height="962" alt="Screenshot 2026-06-27 234100" src="https://github.com/user-attachments/assets/41747250-696f-43a8-913d-0fcf2423f16b" />
 
-An production-quality AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
+A production-level AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
 
 It uses an advanced agentic loop (Plan → Decompose → Retrieve → Evaluate → Re-retrieve → Synthesize → Cite) to answer complex queries across multiple uploaded documents (PDFs, TXT, and Markdown).
 
