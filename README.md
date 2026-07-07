@@ -7,6 +7,20 @@ It uses an advanced agentic loop (Plan → Decompose → Retrieve → Evaluate �
 
 ---
 
+## Problem
+
+Finding reliable information across large collections of documents is time-consuming. Traditional chatbots often produce inaccurate answers because they lack grounding and source verification.
+
+This project explores how agentic RAG systems can improve research workflows by combining retrieval, evaluation, and citation generation.
+
+---
+
+## Motivation
+
+I wanted to explore how LLM applications can move beyond simple question-answering into reliable research assistants that can reason over multiple sources while maintaining accuracy and transparency.
+
+---
+
 ## Key Features
 
 *   **Multi-Document Processing**: Drag-and-drop or select multiple PDFs, TXT, and Markdown files simultaneously.
