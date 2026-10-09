@@ -1,120 +1,133 @@
-# Agentic Multi-Document Research & Q&A Assistant
-<img width="1910" height="962" alt="Screenshot 2026-06-27 234100" src="https://github.com/user-attachments/assets/41747250-696f-43a8-913d-0fcf2423f16b" />
+# Multi-Document Research Assistant
 
-A production-level AI Research Assistant built using **Next.js 16 (App Router)**, **TypeScript**, **TailwindCSS v4**, **LangChain**, and the **Google Gemini API**. 
+A document-grounded research workspace built with **Next.js, TypeScript, LangChain.js, Google Gemini, and optional Upstash Redis persistence**. Upload a collection of PDFs, text files, or Markdown documents, ask a question across them, and inspect the sources used to form an answer.
 
-It uses an advanced agentic loop (Plan → Decompose → Retrieve → Evaluate → Re-retrieve → Synthesize → Cite) to answer complex queries across multiple uploaded documents (PDFs, TXT, and Markdown).
+> **Project status:** Personal engineering project / portfolio prototype. It demonstrates an AI application architecture; it is not presented as a production-audited or security-certified service.
 
----
+![Research Assistant interface](https://github.com/user-attachments/assets/41747250-696f-43a8-913d-0fcf2423f16b)
 
-## Problem
+## Why this project exists
 
-Finding reliable information across large collections of documents is time-consuming. Traditional chatbots often produce inaccurate answers because they lack grounding and source verification.
+A basic chatbot answers from model knowledge and can make unsupported claims. A document research assistant should retrieve relevant evidence from the user's own material and make it possible to check where an answer came from.
 
-This project explores how agentic RAG systems can improve research workflows by combining retrieval, evaluation, and citation generation.
+This project explores that workflow: document ingestion, chunking, semantic retrieval, evidence evaluation, query refinement, synthesis, and source citations.
 
----
+## Features
 
-## Motivation
+- **Multi-document ingestion** for PDF, TXT, and Markdown files.
+- **Structure-aware chunking** intended to preserve useful section context and provenance.
+- **Semantic retrieval** with cosine similarity, Maximal Marginal Relevance (MMR), and metadata filtering.
+- **Iterative retrieval workflow** that can refine a search when the first evidence set appears weak.
+- **Source-linked answers** with document/page or section information where available.
+- **Streaming chat UI** and a visible progress panel for workflow stages.
+- **Optional Redis persistence** for document metadata and vector entries when the required Upstash configuration is supplied; otherwise the application falls back to in-memory storage.
 
-I wanted to explore how LLM applications can move beyond simple question-answering into reliable research assistants that can reason over multiple sources while maintaining accuracy and transparency.
+## Architecture at a glance
 
----
-
-## Key Features
-
-*   **Multi-Document Processing**: Drag-and-drop or select multiple PDFs, TXT, and Markdown files simultaneously.
-*   **Semantic & Structural Chunking**: Heading-aware recursive text splitting that preserves section hierarchy, page numbers, and provenance.
-*   **Advanced Vector Retrieval**: Cosine similarity search combined with **Maximal Marginal Relevance (MMR)** for content diversity, and metadata-filtering.
-*   **Agentic Reasoning Loop**: Replaces static single-turn RAG with an active planner-evaluator chain. If initial evidence is weak, the agent automatically runs query refinement and searches again.
-*   **Source Citations**: Inline citations mapped directly to source documents with page numbers, section headers, and exact quotations.
-*   **Premium Glassmorphic UI**: High-fidelity dark/light mode, animated sidebar, interactive thinking panel (workflows are visible, but raw LLM chain-of-thought is hidden), inline suggested follow-up chips, copyable answers, and smooth Framer Motion micro-animations.
-
----
-
-## Technical Stack
-
-*   **Framework**: Next.js 16 (App Router)
-*   **Language**: TypeScript (strict types)
-*   **Styling**: TailwindCSS v4
-*   **Agent Orchestration**: LangChain.js & custom workflow loop
-*   **Embeddings & Chat Model**: Google Gemini API (`gemini-2.5-flash` / `gemini-embedding-001`)
-*   **Animations**: Framer Motion
-*   **Icons**: Lucide Icons
-*   **Markdown Parsing**: React Markdown with rehype-highlight (code blocks syntax highlighting) & remark-gfm
-
----
-
-## Project Structure
-
-```
-research-assistant/
-├── src/
-│   ├── app/                    # App Router routes & API endpoints
-│   │   ├── api/
-│   │   │   ├── chat/           # SSE Streaming Chat route
-│   │   │   ├── documents/      # Document catalog management
-│   │   │   └── upload/         # Ingestion & Vector indexing route
-│   │   ├── globals.css         # Custom tokens & design styles
-│   │   ├── layout.tsx          # App container & Error boundaries
-│   │   └── page.tsx            # Main workspace page
-│   ├── components/             # Reusable UI component modules
-│   │   ├── chat/               # Message bubbles, input, citations
-│   │   ├── documents/          # Sidebar, upload zone, document list cards
-│   │   ├── shared/             # Theme toggler, header, spinners
-│   │   └── thinking/           # Reasoning progress steps list
-│   ├── lib/
-│   │   ├── prompts/            # Stage-specific system instructions
-│   │   ├── services/           # Ingestion, vector math, memory, orchestrator
-│   │   └── utils/              # Text cleaners, validators, ID generators
-│   └── types/                  # Shared TypeScript interfaces
+```mermaid
+flowchart TD
+    A[PDF / TXT / Markdown] --> B[Upload API]
+    B --> C[Parse and chunk]
+    C --> D[Create embeddings]
+    D --> E[(Vector and document storage)]
+    F[User question] --> G[Plan / retrieve]
+    E --> G
+    G --> H{Evidence sufficient?}
+    H -- No --> I[Refine query and retrieve again]
+    I --> G
+    H -- Yes --> J[Generate grounded answer]
+    J --> K[Answer with source citations]
 ```
 
----
+See [docs/architecture.md](docs/architecture.md) for the component map, key trade-offs, and current limitations.
 
-## Getting Started
+## Technology
 
-### Prerequisites
+| Area | Tools |
+|---|---|
+| Web application | Next.js App Router, React, TypeScript |
+| Styling and interaction | Tailwind CSS, Framer Motion, Lucide |
+| AI orchestration | LangChain.js and a custom retrieval workflow |
+| Models | Google Gemini chat and embedding models |
+| Document processing | PDF parsing, text splitting, Markdown rendering |
+| Persistence | Upstash Redis when configured; in-memory fallback |
+| Deployment target | Vercel-compatible Next.js application |
 
-*   Node.js v20+
-*   Google Gemini API Key (get one from [Google AI Studio](https://aistudio.google.com/apikey))
+## Run locally
 
-### Installation
+### Requirements
 
-1. Clone or navigate to the directory:
-   ```bash
-   cd research-assistant
-   ```
+- Node.js 20 or newer
+- npm
+- A Google AI Studio API key
+- Optional: an Upstash Redis database for persistence across serverless instances
 
-2. Install dependencies:
-   ```bash
-   npm install --legacy-peer-deps
-   ```
+### Setup
 
-3. Configure environment variables:
-   Create a `.env.local` file in the root directory:
-   ```env
-   GOOGLE_API_KEY=your-gemini-api-key-here
-   ```
+```bash
+git clone https://github.com/IamAlag/research-assistant.git
+cd research-assistant
+npm install --legacy-peer-deps
+```
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+Create a `.env.local` file in the project root:
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to start researching.
+```dotenv
+GOOGLE_API_KEY=replace-with-your-key
+```
 
----
+If using Upstash Redis, configure the Redis environment variables expected by the application. Do not commit real API keys, tokens, or database credentials.
 
-## Production Readiness
+Start the development server:
 
-*   **Standalone Build Config**: Configured with `serverExternalPackages: ["pdf-parse"]` to prevent bundling errors on Vercel/serverless environments.
-*   **API Timeouts**: Handlers explicitly configured with `maxDuration` limits to permit longer planning loops.
-*   **Global Error Handling**: Protected via React client boundaries to recover gracefully from parsing anomalies.
+```bash
+npm run dev
+```
 
----
+Open [http://localhost:3000](http://localhost:3000).
 
+Other available scripts:
 
-The app now persists document metadata and vector entries through Upstash Redis when the two Redis environment variables are present. If those variables are missing, it gracefully falls back to in-memory storage.
+```bash
+npm run lint
+npm run build
+npm run start
+```
 
-That means the Vercel deploy is now good for a real public demo as long as you configure the Redis variables. Without them, the link will still work, but uploaded documents can disappear on cold starts or new serverless instances.
+## Repository map
+
+```text
+src/
+├── app/
+│   └── api/
+│       ├── chat/        # Chat and streaming response endpoint
+│       ├── documents/   # Document catalog operations
+│       └── upload/      # Ingestion and indexing
+├── components/          # Chat, documents, shared UI, progress panel
+├── lib/
+│   ├── prompts/         # Stage-specific model instructions
+│   ├── services/        # Ingestion, retrieval, persistence, orchestration
+│   └── utils/           # Validation and helper functions
+└── types/               # Shared TypeScript types
+```
+
+## Engineering trade-offs and limitations
+
+- **Retrieval is not proof of correctness.** Relevant passages can be missed, and a model can still misinterpret retrieved evidence.
+- **Citations must be verified.** Source links and excerpts improve inspectability but do not guarantee every claim is supported.
+- **In-memory mode is temporary.** Data may be lost between serverless instances or restarts. Configure persistent storage for a stable demo.
+- **Model access has cost and latency.** Requests depend on provider availability, rate limits, and model behaviour.
+- **Uploaded files are untrusted input.** Do not upload confidential material to a public deployment. Before production use, add and validate strict upload limits, robust content-type checks, abuse controls, observability, and a security review.
+- **Evaluation is ongoing.** A proper benchmark should measure retrieval quality, citation support, answer correctness, latency, and token/cost usage on a documented question set.
+
+## Next improvements
+
+- Add a versioned evaluation set with expected source passages.
+- Add unit and integration tests for parsing, retrieval, citations, and API error paths.
+- Add automated type-checking and CI build verification.
+- Record latency and token usage to make quality/cost trade-offs measurable.
+- Harden upload validation and add rate limiting before exposing the app to untrusted users.
+
+## About
+
+Built by [Alagappan](https://github.com/IamAlag) as a hands-on project exploring grounded LLM applications and full-stack AI engineering. Feedback and issue reports are welcome.
