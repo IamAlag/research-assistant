@@ -10,6 +10,7 @@ A document research workspace built with **Next.js, React, TypeScript, LangChain
 
 - **[Beginner guide: understand and run the project](docs/START_HERE.md)** — plain-English explanations, setup steps, code map, vocabulary, and a learning plan.
 - **[Interview notes](docs/INTERVIEW_NOTES.md)** — concise explanations, likely questions, trade-offs, and practice checklist.
+- **[Portfolio learning roadmap](docs/PORTFOLIO_LEARNING_ROADMAP.md)** — how the two projects fit together, Git/GitHub basics, and a 10-day study plan.
 - [Architecture and engineering notes](docs/architecture.md) — design decisions and limitations.
 
 ## Why this project exists
