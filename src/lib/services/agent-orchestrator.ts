@@ -51,7 +51,7 @@ export async function* processQuestion(
 ): AsyncGenerator<StreamEvent> {
   const agentConfig = { ...DEFAULT_AGENT_CONFIG, ...config };
   const thinkingSteps: ThinkingStep[] = [];
-  let allEvidence: ScoredChunk[] = [];
+  const allEvidence: ScoredChunk[] = [];
   let citations: Citation[] = [];
 
   // Save user message to history
