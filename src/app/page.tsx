@@ -63,7 +63,9 @@ export default function HomePage() {
 
   // Fetch documents on mount
   useEffect(() => {
-    refreshDocuments();
+    queueMicrotask(() => {
+      void refreshDocuments();
+    });
   }, [refreshDocuments]);
 
   /**
