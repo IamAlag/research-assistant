@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local one-off scripts are not application source and use CommonJS.
+    "scratch/**",
   ]),
 ]);
 
