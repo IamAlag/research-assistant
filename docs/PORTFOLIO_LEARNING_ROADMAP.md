@@ -6,8 +6,8 @@ This is the big-picture guide for learning your two featured projects without tr
 
 1. [Research Assistant beginner guide](START_HERE.md)
 2. [Research Assistant interview notes](INTERVIEW_NOTES.md)
-3. [Video Caption Agent beginner guide](../../video-caption-agent/docs/START_HERE.md) — if you have the other repository checked out separately, open that repo and go to `docs/START_HERE.md`.
-4. [Video Caption Agent interview notes](../../video-caption-agent/docs/INTERVIEW_NOTES.md)
+3. [Video Caption Agent beginner guide](https://github.com/IamAlag/video-caption-agent/blob/main/docs/START_HERE.md) — if you have the other repository checked out separately, open that repo and go to `docs/START_HERE.md`.
+4. [Video Caption Agent interview notes](https://github.com/IamAlag/video-caption-agent/blob/main/docs/INTERVIEW_NOTES.md)
 5. [Research Assistant architecture notes](architecture.md)
 
 ## The two projects in one table
